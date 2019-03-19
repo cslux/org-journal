@@ -765,7 +765,11 @@ is nil or avoid switching when NOSELECT is non-nil."
 See `org-read-date' for information on ways to specify dates.
 If a prefix argument is given, search all dates."
   (interactive (list (read-string "Enter a string to search for: " nil 'org-journal-search-history)))
-  (let* ((period-pair (org-journal-read-period (if current-prefix-arg 'forever period-name)))
+  (let* ((calendar-today-visible-hook
+          (remove 'org-journal-mark-entries calendar-today-visible-hook))
+         (calendar-today-invisible-hook
+          (remove 'org-journal-mark-entries calendar-today-invisible-hook))
+         (period-pair (org-journal-read-period (if current-prefix-arg 'forever period-name)))
          (start (org-journal-calendar-date->time (car period-pair)))
          (end (org-journal-calendar-date->time (cdr period-pair))))
     (org-journal-search-by-string str start end)))
