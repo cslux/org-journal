@@ -1011,7 +1011,7 @@ If STR is empty, search for all entries using `org-journal-time-prefix'."
           (let* ((fullstr (buffer-substring-no-properties
                            (line-beginning-position)
                            (line-end-position)))
-                 (res (list fname (line-number-at-pos) fullstr)))
+                 (res (list fname (- (point) (length str)) fullstr)))
             (push res results)))))
     (cond
       ((eql org-journal-search-results-order-by :desc) results)
@@ -1032,14 +1032,19 @@ If STR is empty, search for all entries using `org-journal-time-prefix'."
                    ": \n\n")))
   (dolist (res results)
     (let* ((fname (nth 0 res))
-           (lnum (nth 1 res))
+           (point (nth 1 res))
            (fullstr (nth 2 res))
+           (buf (find-file-noselect fname))
            (time (org-journal-calendar-date->time
-                  (org-journal-file-name->calendar-date fname)))
+                  (if (org-journal-daily-p)
+                      (org-journal-file-name->calendar-date fname)
+                    (with-current-buffer buf
+                      (goto-char point)
+                      (org-journal-entry-date->calendar-date)))))
            (label (org-journal-format-date time)))
       (insert-text-button label
                           'action 'org-journal-search-follow-link-action
-                          'org-journal-link (cons fname lnum))
+                          'org-journal-link (cons point time))
       (princ "\t")
       (princ fullstr)
       (princ "\n")))
@@ -1053,14 +1058,11 @@ If STR is empty, search for all entries using `org-journal-time-prefix'."
 (defun org-journal-search-follow-link-action (button)
   "Follow the link using info saved in button properties."
   (let* ((target (button-get button 'org-journal-link))
-         (fname (car target))
-         (lnum (cdr target)))
-    (org-journal-read-or-display-entry
-     (org-journal-calendar-date->time
-      (org-journal-file-name->calendar-date fname)))
-    (outline-show-all) ; TODO: could not find out a proper way to go to a hidden line
-    (goto-char (point-min))
-    (forward-line (1- lnum))))
+         (point (car target))
+         (time (cdr target)))
+    (org-journal-read-or-display-entry time)
+    (goto-char point)
+    (outline-hide-other)))
 
 (defun org-journal-decrypt ()
   (when (fboundp 'org-decrypt-entries)
